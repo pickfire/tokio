@@ -547,3 +547,14 @@ pub async fn default_numeric_fallback() {
         else => (),
     }
 }
+
+#[tokio::test]
+async fn select_cfg() {
+    let foo = tokio::select! {
+        foo = one() => foo,
+        #[cfg(any())]
+        _ = nani() => foo,
+    };
+
+    assert_eq!(foo, 1);
+}

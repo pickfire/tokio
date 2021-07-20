@@ -562,8 +562,59 @@ macro_rules! select {
     (@ { start=$start:expr; $($t:tt)* } else => $else:expr $(,)?) => {
         $crate::select!(@{ start=$start; $($t)*; $else })
     };
-    (@ { start=$start:expr; ( $($s:tt)* ) $($t:tt)* } $p:pat = $f:expr, if $c:expr => $h:block, $($r:tt)* ) => {
+    (@ { start=$start:expr; ( $($s:tt)* ) $($t:tt)* } #[cfg($meta:meta)] $p:pat = $f:expr, if $c:expr => $h:block, $($r:tt)* ) => {
+        #[cfg($meta)]
         $crate::select!(@{ start=$start; ($($s)* _) $($t)* ($($s)*) $p = $f, if $c => $h, } $($r)*)
+        #[cfg(not($meta))]
+        $crate::select!(@{ start=$start; ($($s)*) $($t)* } $($r)*)
+    };
+    (@ { start=$start:expr; ( $($s:tt)* ) $($t:tt)* } #[cfg($meta:meta)] $p:pat = $f:expr => $h:block, $($r:tt)* ) => {
+        #[cfg($meta)]
+        $crate::select!(@{ start=$start; ($($s)* _) $($t)* ($($s)*) $p = $f, if true => $h, } $($r)*)
+        #[cfg(not($meta))]
+        $crate::select!(@{ start=$start; ($($s)*) $($t)* } $($r)*)
+    };
+    (@ { start=$start:expr; ( $($s:tt)* ) $($t:tt)* } #[cfg($meta:meta)] $p:pat = $f:expr, if $c:expr => $h:block $($r:tt)* ) => {
+        #[cfg($meta)]
+        $crate::select!(@{ start=$start; ($($s)* _) $($t)* ($($s)*) $p = $f, if $c => $h, } $($r)*)
+        #[cfg(not($meta))]
+        $crate::select!(@{ start=$start; ($($s)*) $($t)* } $($r)*)
+    };
+    (@ { start=$start:expr; ( $($s:tt)* ) $($t:tt)* } #[cfg($meta:meta)] $p:pat = $f:expr => $h:block $($r:tt)* ) => {
+        #[cfg($meta)]
+        $crate::select!(@{ start=$start; ($($s)* _) $($t)* ($($s)*) $p = $f, if true => $h, } $($r)*)
+        #[cfg(not($meta))]
+        $crate::select!(@{ start=$start; ($($s)*) $($t)* } $($r)*)
+    };
+    (@ { start=$start:expr; ( $($s:tt)* ) $($t:tt)* } #[cfg($meta:meta)] $p:pat = $f:expr, if $c:expr => $h:expr ) => {
+        #[cfg($meta)]
+        $crate::select!(@{ start=$start; ($($s)* _) $($t)* ($($s)*) $p = $f, if $c => $h, })
+        #[cfg(not($meta))]
+        $crate::select!(@{ start=$start; ($($s)*) $($t)* } $($r)*)
+    };
+    (@ { start=$start:expr; ( $($s:tt)* ) $($t:tt)* } #[cfg($meta:meta)] $p:pat = $f:expr => $h:expr ) => {
+        #[cfg($meta)]
+        $crate::select!(@{ start=$start; ($($s)* _) $($t)* ($($s)*) $p = $f, if true => $h, })
+        #[cfg(not($meta))]
+        $crate::select!(@{ start=$start; ($($s)*) $($t)* } $($r)*)
+    };
+    (@ { start=$start:expr; ( $($s:tt)* ) $($t:tt)* } #[cfg($meta:meta)] $p:pat = $f:expr, if $c:expr => $h:expr, $($r:tt)* ) => {
+        #[cfg($meta)]
+        $crate::select!(@{ start=$start; ($($s)* _) $($t)* ($($s)*) $p = $f, if $c => $h, } $($r)*)
+        #[cfg(not($meta))]
+        $crate::select!(@{ start=$start; ($($s)*) $($t)* } $($r)*)
+    };
+    (@ { start=$start:expr; ( $($s:tt)* ) $($t:tt)* } #[cfg($meta:meta)] $p:pat = $f:expr => $h:expr, $($r:tt)* ) => {
+        #[cfg($meta)]
+        $crate::select!(@{ start=$start; ($($s)* _) $($t)* ($($s)*) $p = $f, if true => $h, } $($r)*)
+        #[cfg(not($meta))]
+        $crate::select!(@{ start=$start; ($($s)*) $($t)* } $($r)*)
+    };
+    (@ { start=$start:expr; ( $($s:tt)* ) $($t:tt)* } #[cfg($meta:meta)] $p:pat = $f:expr, if $c:expr => $h:block, $($r:tt)* ) => {
+        #[cfg($meta)]
+        $crate::select!(@{ start=$start; ($($s)* _) $($t)* ($($s)*) $p = $f, if $c => $h, } $($r)*)
+        #[cfg(not($meta))]
+        $crate::select!(@{ start=$start; ($($s)*) $($t)* } $($r)*)
     };
     (@ { start=$start:expr; ( $($s:tt)* ) $($t:tt)* } $p:pat = $f:expr => $h:block, $($r:tt)* ) => {
         $crate::select!(@{ start=$start; ($($s)* _) $($t)* ($($s)*) $p = $f, if true => $h, } $($r)*)
@@ -589,14 +640,14 @@ macro_rules! select {
 
     // ===== Entry point =====
 
-    (biased; $p:pat = $($t:tt)* ) => {
-        $crate::select!(@{ start=0; () } $p = $($t)*)
+    (biased; $( #[cfg($meta:meta)] )? $p:pat = $($t:tt)* ) => {
+        $crate::select!(@{ start=0; () } $( #[cfg($meta)] )? $p = $($t)*)
     };
 
-    ( $p:pat = $($t:tt)* ) => {
+    ( $( #[cfg($meta:meta)] )? $p:pat = $($t:tt)* ) => {
         // Randomly generate a starting point. This makes `select!` a bit more
         // fair and avoids always polling the first future.
-        $crate::select!(@{ start={ $crate::macros::support::thread_rng_n(BRANCHES) }; () } $p = $($t)*)
+        $crate::select!(@{ start={ $crate::macros::support::thread_rng_n(BRANCHES) }; () } $( #[cfg($meta)] )? $p = $($t)*)
     };
     () => {
         compile_error!("select! requires at least one branch.")
